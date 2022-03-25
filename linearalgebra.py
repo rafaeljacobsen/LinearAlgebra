@@ -31,7 +31,9 @@ matrixDict = {"sample":np.array([[1,2,3],[4,5,6],[7,8,9]]),
 			  "sample23":np.array([[0,1],[2,3]]),
 			  "sample24":np.array([[1,1],[2,1]]),
 			  "sample25":np.array([[2,9,6,4],[1,2,5,3],[9,1,5,3]]),
-			  "sample27":np.array([[2,3],[3,-6],[6,2]])}
+			  "sample27":np.array([[2,3],[3,-6],[6,2]]),
+			  "sample28":np.array([[1,1,0],[1,0,2],[1,0,1],[1,1,-1]]),
+			  "sample29":np.array([[2,3,5],[0,4,6],[0,0,7]])}
 vectorDict = {"vector":np.array([1,2,3]),
 			  "vector1":np.array([1,2,3,4]),
 			  "vector2":np.array([1,0,0]),
@@ -324,10 +326,14 @@ def coordinatesRelativetoBasis(matrix,vector):
 		coordinates.append(extendedMatrix[i,np.shape(extendedMatrix)[1]-1])
 	return(np.asarray(coordinates))
 def normalize(vector):
+	if vectorlength(vector) == 0:
+		return(vector)
+	return(scale(vector,1/(vectorlength(vector))).astype("float"))
+def vectorlength(vector):
 	length = 0
 	for i in vector:
 		length += i**2
-	return(scale(vector,1/(np.sqrt(length))).astype("float"))
+	return(float(np.sqrt(length)))
 def scale(vector,scalar):
 	vector = np.array(vector).astype('float64')
 	for i in range(len(vector)):
@@ -371,10 +377,23 @@ def multiplyMatrix(matrix1,matrix2):
 	return(output)
 def orthogonalProjection(basis,vector):
 	basis = basis.astype("float")
-	for i in range(np.shape(basis)[1]):
+	for i in range(np.shape(basis)[1]):#normalizes basis
 		basis[:,i]=normalize(basis[:,i]).astype("float")
-
 	return(multiplyMatrixVector(multiplyMatrix(basis,basis.T),vector))
+def orthogonalBasis(basis):
+	orthogonal = np.zeros(np.shape(basis))
+	for i in range(np.shape(basis)[1]):
+		orthogonal[:,i]=normalize(subtractvector(basis[:,i],orthogonalProjection(orthogonal,basis[:,i]),1))
+	return(orthogonal)
+def QRfactorization(basis):
+	orthogonal = np.zeros(np.shape(basis))
+	R=np.zeros((np.shape(basis)[1],np.shape(basis)[1]))
+	for j in range(np.shape(basis)[1]):
+		R[j,j]=vectorlength(subtractvector(basis[:,j],orthogonalProjection(orthogonal,basis[:,j]),1))
+		for i in range(j):
+			R[i,j]=dotProduct(basis[:,j],orthogonal[:,i])
+		orthogonal[:,j]=normalize(subtractvector(basis[:,j],orthogonalProjection(orthogonal,basis[:,j]),1))
+	return(basis,orthogonal,R)
 while True:
 	print("Do you want to:")
 	print("   1) Create a matrix")
@@ -395,6 +414,8 @@ while True:
 	print("   16) Transformation relative to a basis")
 	print("   17) Matrix multiplication")
 	print("   18) Orthogonal projection")
+	print("   19) Orthogonal basis")
+	print("   20) QR factorization")
 	selection = input()
 	if selection == "1":
 		temp = inputMatrix()
@@ -458,4 +479,15 @@ while True:
 		basis = input("Orthogonal basis matrix name: ")
 		vector = input("Vector name: ")
 		showVector(orthogonalProjection(matrixDict[basis], vectorDict[vector]))
+	if selection == "19":
+		basis = input("Basis matrix name: ")
+		showMatrix(orthogonalBasis(matrixDict[basis]))
+	if selection == "20":
+		basis = input("Basis matrix name: ")
+		print("A:")
+		showMatrix(QRfactorization(matrixDict[basis])[0])
+		print("Q:")
+		showMatrix(QRfactorization(matrixDict[basis])[1])
+		print("R:")
+		showMatrix(QRfactorization(matrixDict[basis])[2])
 	
