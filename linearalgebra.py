@@ -4,6 +4,7 @@ import math
 import re
 import warnings
 import decimal
+from sympy.utilities.iterables import multiset_permutations
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 matrixDict = {"sample":np.array([[1,2,3],[4,5,6],[7,8,9]]),
 			  "sample1":np.array([[1,2],[3,4],[5,6]]),
@@ -33,7 +34,9 @@ matrixDict = {"sample":np.array([[1,2,3],[4,5,6],[7,8,9]]),
 			  "sample25":np.array([[2,9,6,4],[1,2,5,3],[9,1,5,3]]),
 			  "sample27":np.array([[2,3],[3,-6],[6,2]]),
 			  "sample28":np.array([[1,1,0],[1,0,2],[1,0,1],[1,1,-1]]),
-			  "sample29":np.array([[2,3,5],[0,4,6],[0,0,7]])}
+			  "sample29":np.array([[2,3,5],[0,4,6],[0,0,7]]),
+			  "sample30":np.array([[3,1],[1,3]]),
+			  "sample31":np.array([[2,3,1],[1,1,4],[0,4,5]])}
 vectorDict = {"vector":np.array([1,2,3]),
 			  "vector1":np.array([1,2,3,4]),
 			  "vector2":np.array([1,0,0]),
@@ -394,6 +397,68 @@ def QRfactorization(basis):
 			R[i,j]=dotProduct(basis[:,j],orthogonal[:,i])
 		orthogonal[:,j]=normalize(subtractvector(basis[:,j],orthogonalProjection(orthogonal,basis[:,j]),1))
 	return(basis,orthogonal,R)
+def sortrows(matrix,prev,changes):
+	matrix = matrix.astype(float)
+	m,n = np.shape(matrix)
+	for i in range(m):
+		if i < m-1:
+			if next((k for k, x in enumerate(matrix[i]) if x), None) > next((k for k, x in enumerate(matrix[i+1]) if x), None):
+				matrix[[i, i+1]] = matrix[[i+1,i]]
+				changes += 1
+	if np.allclose(matrix,prev):
+		return(matrix,changes)
+	else:
+		return(sortrows(matrix,matrix,changes))
+def rrefwithchanges(matrix,prev,scale,sign):
+	matrix = matrix.astype(float)
+	m,n = np.shape(matrix)
+	#divides all rows to get ones
+	for i in range(m):
+		if not np.all((matrix[i] == 0)):
+			leading1 = next((k for k, x in enumerate(matrix[i]) if x), None)
+			temp = dividevector(matrix[i],matrix[i][leading1])
+			scale = scale/(matrix[i][leading1])
+			matrix[i] = temp
+
+	#sorts rows
+	matrix = sortrows(matrix,matrix,0)[0]
+	if sortrows(matrix,matrix,0)[1] % 2 != 0:
+		sign = sign*(-1)
+
+	#subtracts rows
+	for i in range(m):
+		if i != m-1:
+			if next((i for i, x in enumerate(matrix[i]) if x), None) == next((i for i, x in enumerate(matrix[i+1]) if x), None):
+				matrix[i+1] = matrix[i+1]-matrix[i]
+				if np.allclose(matrix,prev):
+					return(matrix)
+				return(rrefwithchanges(matrix,matrix,scale,sign))
+		if i != 0 and not isinstance(next((i for i, x in enumerate(matrix[i]) if x), None),type(None)): #if i is not the last row and is not nonzero
+			for k in range(i):
+				if matrix[k][next((i for i, x in enumerate(matrix[i]) if x), None)] != 0:
+					matrix[k] = subtractvector(matrix[k],matrix[i],matrix[k][next((i for i, x in enumerate(matrix[i]) if x), None)])
+					if np.allclose(matrix,prev):
+						return(matrix)
+					return(rrefwithchanges(matrix,matrix,scale,sign))
+	if np.allclose(matrix,prev):
+		return(matrix,scale,sign)
+	else:
+		return(rrefwithchanges(matrix,matrix,scale,sign))
+def determinantrref(matrix):
+	return((rrefwithchanges(matrix,matrix,1,1)[2])*(1/(rrefwithchanges(matrix,matrix,1,1)[1])))
+def determinant(matrix):
+	det = 0
+	permutations = multiset_permutations(np.arange(3))
+	for p in permutations:
+		my_count = 0
+		for i, num in enumerate(p, start=1):
+			my_count += sum(num>num2 for num2 in p[i:])
+		if my_count % 2 == 1: sgn = -1
+		else: sgn = 1
+		det += sgn*math.prod(matrix[n,p[n]] for n in range(len(p)))
+	return(det)
+def eigenvalues(matrix):
+	print("Not done yet")
 while True:
 	print("Do you want to:")
 	print("   1) Create a matrix")
@@ -416,6 +481,8 @@ while True:
 	print("   18) Orthogonal projection")
 	print("   19) Orthogonal basis")
 	print("   20) QR factorization")
+	print("   21) Determinant with rref")
+	print("   22) Determinant without rref")
 	selection = input()
 	if selection == "1":
 		temp = inputMatrix()
@@ -490,4 +557,17 @@ while True:
 		showMatrix(QRfactorization(matrixDict[basis])[1])
 		print("R:")
 		showMatrix(QRfactorization(matrixDict[basis])[2])
-	
+	if selection == "21":
+		matrix = input("Matrix name: ")
+		temp = determinantrref(matrixDict[matrix])
+		if math.isclose(round(temp),temp):
+			print(int(round(temp)))
+		else:
+			print(temp)
+	if selection == "22":
+		matrix = input("Matrix name: ")
+		temp = determinant(matrixDict[matrix])
+		if math.isclose(round(temp),temp):
+			print(int(round(temp)))
+		else:
+			print(temp)
